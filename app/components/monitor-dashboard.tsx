@@ -52,6 +52,20 @@ import { MONITOR_SLO as SLO } from "../utils/monitor-slo";
 type Env = "prod" | "staging";
 type Preset = "1d" | "1w" | "1m";
 
+/** Persist the last-chosen env tab so it becomes the default on the next visit. */
+const ENV_STORAGE_KEY = "monitor-dashboard.env";
+
+function readStoredEnv(): Env {
+	if (typeof localStorage === "undefined") return "prod";
+	try {
+		const stored = localStorage.getItem(ENV_STORAGE_KEY);
+		if (stored === "prod" || stored === "staging") return stored;
+	} catch {
+		// localStorage unavailable (private mode, blocked cookies, etc.)
+	}
+	return "prod";
+}
+
 type SignalEval = SignalEvalEvent;
 type MonitorInsights = AggregateInsights;
 
@@ -701,7 +715,16 @@ function StrategyOutcomeStrip({
 }
 
 export function MonitorDashboard() {
-	const [env, setEnv] = useState<Env>("prod");
+	const [env, setEnv] = useState<Env>(readStoredEnv);
+
+	useEffect(() => {
+		if (typeof localStorage === "undefined") return;
+		try {
+			localStorage.setItem(ENV_STORAGE_KEY, env);
+		} catch {
+			// Ignore storage failures; the in-memory default still applies.
+		}
+	}, [env]);
 	const [preset, setPreset] = useState<Preset | null>("1d");
 	const [range, setRange] = useState<DateRange | undefined>();
 	const [calOpen, setCalOpen] = useState(false);
